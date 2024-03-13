@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Furious Chargers - AES with 2FA - Demo</title>
+    <link rel="stylesheet" href="styles.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/base-32@0.0.3/lib/index.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="heading">Furious Chargers - AES with 2FA - Demo</h1>
+
+	<div class="encrypt-section">
+            <h2 class="section-heading">Encrypt File</h2>
+            <form id="encrypt-form" enctype="multipart/form-data" class="form">
+                <label for="file" class="form-label">Select file to encrypt:</label>
+                <input type="file" id="file" name="file" class="form-input" required>
+                <label for="password" class="form-label">Enter password:</label>
+                <input type="password" id="password" name="password" class="form-input" required>
+                <button type="button" onclick="encryptFile()" class="btn">Encrypt</button>
+            </form>
+            <div id="encryption-response" style="display: none;"></div>
+            <div id="qr-code" style="display: none;"></div>
+        </div>
+
+        <div class="decrypt-section">
+            <h2 class="section-heading">Decrypt File</h2>
+            <form id="decrypt-form" enctype="multipart/form-data" class="form">
+                <label for="encrypted_file" class="form-label">Select encrypted file:</label>
+                <input type="file" id="encrypted_file" name="encrypted_file" class="form-input" required>
+                <label for="decryption_password" class="form-label">Enter decryption password:</label>
+                <input type="password" id="decryption_password" name="decryption_password" class="form-input" required>
+                <label for="otp" class="form-label">Enter OTP:</label>
+                <input type="text" id="otp" name="otp" class="form-input" required>
+				<button type="button" onclick="decryptFile()" class="btn">Decrypt</button>
+            </form>
+			<div id="decyption-response" style="display: none;"></div>
+        </div>
+    </div>
+	    <script>
+		function base32Encode(secretKey) {
+    const base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let base32String = "";
+
+    let bits = 0;
+    let buffer = 0;
+
+    for (let i = 0; i < secretKey.length; i++) {
+        buffer = (buffer << 8) | secretKey[i];
+        bits += 8;
+
+        while (bits >= 5) {
+            bits -= 5;
+            base32String += base32Chars[(buffer >> (bits)) & 0x1F];
+        }
+    }
+
+    if (bits > 0) {
+        buffer <<= (5 - bits);
+        base32String += base32Chars[buffer & 0x1F];
+    }
+
+    // Add padding if necessary
+    const padding = base32String.length % 8;
+    if (padding > 0) {
+        base32String += '='.repeat(8 - padding);
+    }
+
+    return base32String;
+}
+        function encryptFile() {
+			document.getElementById("qr-code").innerHTML  = "";
+            var form = document.getElementById("encrypt-form");
+            var formData = new FormData(form);
+
+            fetch("http://127.0.0.1:5000/encrypt", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById("encryption-response").innerText = data;
+                document.getElementById("encryption-response").style.display = "block";
+
+                // Generate QR Code for OTP
+                var password = document.getElementById("password").value;
+                var secretKey = sha256(password); // Generate SHA-256 hash
+                var base32Key = base32Encode(secretKey); // Convert to Base32 format
+				console.log(' base32Key ' + base32Key);
+                var qrCodeText = "otpauth://totp/AES%20Demo?secret=" + base32Key;
+                var qrCode = new QRCode(document.getElementById("qr-code"), {
+                    text: qrCodeText,
+                    width: 200,
+                    height: 200
+                });
+                document.getElementById("qr-code").style.display = "block";
+            })
+            .catch(error => console.error('Error:', error));
+        }
+		
+		 function decryptFile() {
+            var form = document.getElementById("decrypt-form");
+            var formData = new FormData(form);
+			var decryption_password_base_32 = base32Encode(sha256(document.getElementById("decryption_password").value));
+			console.log(decryption_password_base_32);
+            fetch("http://127.0.0.1:5000/decrypt", {
+                method: "POST",
+                body: formData,
+				headers: {
+			'dp': decryption_password_base_32
+		},
+            })
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById("decyption-response").innerText = data;
+                document.getElementById("decyption-response").style.display = "block";
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+</html>
