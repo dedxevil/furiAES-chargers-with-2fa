@@ -34,10 +34,10 @@ def encrypt():
     encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
 
     # Save encrypted data to a file or database
-    with open("encrypted_file.txt", "wb") as encrypted_file:
+    with open(file.filename + ".enc", "wb") as encrypted_file:
         encrypted_file.write(encrypted_data)
 
-    return "File encrypted successfully"
+    return "File encrypted successfully! Saved with file name : " + file.filename + ".enc"
 
 @app.route("/decrypt", methods=["POST"])
 @cross_origin(origin='localhost',headers=['Content- Type','Authorization'])
@@ -68,14 +68,14 @@ def decrypt():
     totp = pyotp.parse_uri( otp_uri )
     print(totp)
     if not totp.verify(otp):
-        return "Invalid OTP : " + "OTP =--= " + otp + "3434" + request.headers.get('dp') + " -- " + totp.now()
+        return "Invalid OTP"
 
     # Display or save decrypted data
-    decrypted_file_path = "decrypted_file.txt"
+    decrypted_file_path = "decrypted_"+ encrypted_file.filename.replace(".enc","")
     with open(decrypted_file_path, "wb") as decrypted_file:
         decrypted_file.write(unpadded_data)
 
-    return "File decrypted successfully"
+    return "File decrypted successfully!"
 
 if __name__ == "__main__":
     app.run(debug=True)
